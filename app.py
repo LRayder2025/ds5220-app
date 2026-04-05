@@ -124,7 +124,7 @@ def generate_plot(df: pd.DataFrame) -> io.BytesIO | None:
     sns.set_theme(style="whitegrid", context="talk")
     fig, ax = plt.subplots(figsize=(14, 7))
 
-    sns.lineplot(data=df, x="timestamp", y="water_level", hue="station_id", 
+    sns.lineplot(data=df, x="timestamp", y="water_level", hue="station_name", 
                  ax=ax, linewidth=2, marker='o', markersize=4)
 
     switches = df[df["trend"].str.contains("SWITCH", na=False)]
@@ -137,7 +137,7 @@ def generate_plot(df: pd.DataFrame) -> io.BytesIO | None:
 
     ax.set_title(f"Coastal Water Levels (Updated: {datetime.now().strftime('%H:%M UTC')})")
     ax.set_ylabel("Height Above MLLW (ft)")
-    ax.legend(title="Station ID", bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.legend(title="Station Location", bbox_to_anchor=(1.05, 1), loc='upper left')
 
     plt.xticks(rotation=25)
     plt.tight_layout()
