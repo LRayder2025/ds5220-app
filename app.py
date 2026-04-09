@@ -162,7 +162,40 @@ def push_plot(buf: io.BytesIO) -> None:
     log.info(f"Uploaded tide-heights.png to s3://{S3_BUCKET}")
 
 # ---------------------------------------------------------------------------
-# Main Execution
+# Step 7 — Generate and Push Parquet Data
+# ---------------------------------------------------------------------------
+def push_parquet_data(df: pd.DataFrame) -> None:
+    """Converts the dataframe to Parquet and uploads it to S3."""
+    if df.empty:
+        log.warning("History DataFrame is empty. Skipping Parquet export.")
+        return
+
+    try:
+        # 1. Convert DataFrame to Parquet in memory
+        parquet_buf = io.BytesIO()
+        # We ensure index=False to keep the file clean
+        df.to_parquet(parquet_buf, engine='pyarrow', index=False)
+        parquet_buf.seek(0)
+
+        # 2. Upload to S3
+        s3 = boto3.client("s3", region_name=AWS_REGION)
+        s3.put_object(
+            Bucket=S3_BUCKET,
+            Key="data.parquet",
+            Body=parquet_buf.getvalue(),
+            ContentType="application/octet-stream", # Standard for binary data files
+        )
+        log.info(f"✅ Successfully uploaded data.parquet to s3://{S3_BUCKET}")
+        
+        # Construct the URL for your logs
+        public_url = f"http://{S3_BUCKET}.s3-website-{AWS_REGION}.amazonaws.com/data.parquet"
+        log.info(f"Parquet file available at: {public_url}")
+
+    except Exception as e:
+        log.error(f"Failed to generate or upload Parquet: {e}")
+
+# ---------------------------------------------------------------------------
+# Updated Main Execution
 # ---------------------------------------------------------------------------
 def main():
     dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
@@ -187,10 +220,16 @@ def main():
         except Exception as e:
             log.error(f"Error processing {station_id}: {e}")
 
+    # Fetch history once for both the plot and the parquet file
     history_df = fetch_history(table)
+    
+    # Existing Step 5 & 6
     plot_buf = generate_plot(history_df)
     if plot_buf:
         push_plot(plot_buf)
+
+    # NEW Step 7
+    push_parquet_data(history_df)
 
 if __name__ == "__main__":
     main()
